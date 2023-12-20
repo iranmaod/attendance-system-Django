@@ -1,0 +1,310 @@
+{% extends 'admin/base_site.html' %}
+
+
+{% block content %}
+
+{% load i18n admin_urls %}
+
+{% block breadcrumbs %}
+
+{% endblock %}
+<div class="custom-dashboard">
+    <h2>Welcome to the Admin Dashboard</h2>
+    <p>{{ some_data }}</p>
+    <!-- Add your custom content here -->
+</div>
+<div class="container">
+    <div class="row">
+        <div class="col-4">
+            <a href="auth/user/">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="d-flex flex-nowrap align-items-center justify-content-center">
+                            <i class="fa-solid fa-users mr-2"></i>
+                            <h5 class="card-title">Total Employees</h5>
+                        </div>
+                        <div>
+                            <p id="total_employee" class="display-4 font-weight-bold m-0"></p>
+                        </div>  
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-4">
+            <a href="auth/user/">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="d-flex flex-nowrap align-items-center justify-content-center">
+                            <i class="fa-solid fa-briefcase mr-2"></i>
+                            <h5 class="card-title">Active</h5>
+                        </div>
+                        <div>
+                            <p id="active" class="display-4 font-weight-bold m-0"></p>
+                        </div>  
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-4">
+            <a href="auth/user/">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="d-flex flex-nowrap align-items-center justify-content-center">
+                            <i class="fa-solid fa-user-slash mr-2"></i>
+                            <h5 class="card-title">Absent</h5>
+                        </div>
+                        <div>
+                            <p id="absent" class="display-4 font-weight-bold m-0"></p>
+                        </div>  
+                    </div>
+                </div>
+            </a>
+            </div>
+        </div>
+        <div style="width:100%;" class="card" bis_skin_checked="1">
+            <div class="card-body" bis_skin_checked="1">
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% block extrahead %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>  
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js'></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+
+<!-- Firebase integration -->
+
+<!-- Firebase JS -->
+<script src="https://www.gstatic.com/firebasejs/4.1.2/firebase.js"></script>
+<script>
+    // Initialize Firebase
+    // Firebase Console --> Settings --> General
+    // --> Register App --> Copy firebaseConfig
+    const firebaseConfig = {
+        apiKey: "AIzaSyDFx8msQHjiHdDNXjrSGJ1S-_pLPDTfW70",
+        authDomain: "attendance-e5dc8.firebaseapp.com",
+        projectId: "attendance-e5dc8",
+        storageBucket: "attendance-e5dc8.appspot.com",
+        messagingSenderId: "672256934094",
+        appId: "1:672256934094:web:a910859c7a28c93c1c109f",
+        measurementId: "G-V317KD47HW"
+    };
+
+
+    firebase.initializeApp(firebaseConfig);
+
+    // Firebase Messaging Service
+    const messaging = firebase.messaging();
+    function sendTokenToServer(currentToken) {
+        if (!isTokenSentToServer()) {
+            // The API Endpoint will be explained at step 8
+            $.ajax({
+                url: "/api/devices/",
+                method: "POST",
+                async: false,
+                data: {
+                    'csrfmiddlewaretoken': '{{ csrf_token }}',
+                    'registration_id': currentToken,
+                    'type': 'web'
+                },
+                success: function (data) {
+                    console.log(data);
+                    setTokenSentToServer(true);
+                },
+                error: function (err) {
+                    console.log(err);
+                    setTokenSentToServer(false);
+                }
+            });
+
+        } else {
+            console.log('Token already sent to server so won\'t send it again ' +
+                'unless it changes');
+        }
+    }
+
+    function isTokenSentToServer() {
+        return window.localStorage.getItem("sentToServer") === "1";
+    }
+
+    function setTokenSentToServer(sent) {
+        if (sent) {
+            window.localStorage.setItem("sentToServer", "1");
+        } else {
+            window.localStorage.setItem("sentToServer", "0");
+        }
+    }
+
+
+    function requestPermission() {
+        messaging.requestPermission().then(function () {
+            console.log("Has permission!");
+            resetUI();
+        }).catch(function (err) {
+            console.log('Unable to get permission to notify.', err);
+        });
+    }
+
+    function resetUI() {
+        console.log("In reset ui");
+        messaging.getToken().then(function (currentToken) {
+            console.log(currentToken);
+            if (currentToken) {
+                sendTokenToServer(currentToken);
+            } else {
+                setTokenSentToServer(false);
+            }
+        }).catch(function (err) {
+            console.log(err);
+            setTokenSentToServer(false);
+        });
+    }
+
+    messaging.onTokenRefresh(function () {
+        messaging.getToken().then(function (refreshedToken) {
+            console.log("Token refreshed.");
+            // Indicate that the new Instance ID token has not yet been sent to the
+            // app server.
+            setTokenSentToServer(false);
+            // Send Instance ID token to app server.
+            sendTokenToServer(refreshedToken);
+            resetUI();
+        }).catch(function (err) {
+            console.log("Unable to retrieve refreshed token ", err);
+        });
+    });
+
+    messaging.onMessage(function (payload) {
+        payload = payload.data;
+        // Create notification manually when user is focused on the tab
+        const notificationTitle = payload.title;
+        const notificationOptions = {
+            body: payload.body,
+            icon: payload.icon_url,
+        };
+
+        if (!("Notification" in window)) {
+            console.log("This browser does not support system notifications");
+        }
+        // Let's check whether notification permissions have already been granted
+        else if (Notification.permission === "granted") {
+            // If it's okay let's create a notification
+            var notification = new Notification(notificationTitle, notificationOptions);
+            notification.onclick = function (event) {
+                event.preventDefault(); // prevent the browser from focusing the Notification's tab
+                window.open(payload.url, '_blank');
+                notification.close();
+            }
+        }
+    });
+
+
+    requestPermission();
+</script>
+<!------>
+{% endblock %}
+<script>
+$(document).ready(function() {
+    $.ajax({
+        url: '/get_dashboard/',
+        type: "GET",
+        data: {csrfmiddlewaretoken: '{{ csrf_token }}'},
+        dataType: 'json',
+        success: function (data) {
+          // console.log(data)
+          $('#total_employee').html(data.total);
+          $('#active').html(data.active);
+          $('#absent').html(data.absent);
+        }
+    });
+})
+
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        events: '/all_users_attendance',
+        eventClick: function(info) {
+            // console.log(info)
+            if(info.event.id){
+                $.ajax({
+                    url: '/get_tasks/',
+                    type: "POST",
+                    data: {csrfmiddlewaretoken: '{{ csrf_token }}', atten_id:info.event.id},
+                    dataType: 'json',
+                    success: function (data) {
+
+                        const table = document.createElement("table");
+                        table.classList.add("table");
+
+                        // Create the table header row
+                        const headerRow = table.insertRow(0);
+                        headerRow.innerHTML = "<th>Task</th><th>Start Time</th><th>End Time</th><th>Task Type</th><th>Total Time</th><th>Device Info</th>";
+
+                        // Add table rows with data
+                        var break_total  = 0
+                        data.forEach((item, index) => {
+                            const row = table.insertRow(index + 1);
+                            const tot = item.total
+                            const total = secondsToHMS(tot);                           
+                            var task_str = new Date(item.start);
+                            task_str.setHours(task_str.getHours() + 5);   
+                            var task_start = task_str.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' });
+                            var task_endr = new Date(item.end);
+                            task_endr.setHours(task_endr.getHours() + 5);   
+                            var task_end = task_endr.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' });
+                            if(item.type == 'BREAK'){
+                                break_total += task_endr - task_str;
+        
+                            }
+                            row.innerHTML = `<td>${item.title}</td><td>${task_start}</td><td>${task_end}</td><td>${item.type}</td><td>${total}</td><td>${item.device}</td>`;
+                        });
+                        // Convert the table to an HTML string
+                        const tableHTML = table.outerHTML;
+                        
+                        start_time = info.event.start
+                        var task_st = new Date(start_time);
+                        task_st.setHours(task_st.getHours() + 5);   
+                        var finalstart = task_st.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' });
+
+                        end_time = info.event.end
+                        var task_en = new Date(end_time);
+                        task_en.setHours(task_en.getHours() + 5); 
+                        var finalend = task_en.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' });
+                        var total_time = task_en - task_st;
+                        var final_total = total_time - break_total;
+                        var hours = Math.floor(final_total / (1000 * 60 * 60));
+                        if(hours.toString().length < 2)
+                            hours= "0"+hours;
+                        var minutes = Math.floor((final_total % (1000 * 60 * 60)) / (1000 * 60));
+                        if(minutes.toString().length < 2)
+                            minutes= "0"+minutes;
+                        var final_total = `${hours}h : ${minutes}m`;
+                        Swal.fire({
+                            title: "Employee: "+info.event.title+"\n Start time: "+finalstart+"\n End time: "+finalend+ "\n Total time: "+final_total,
+                            html:tableHTML
+                        })
+                    }
+                });
+                
+            }
+        }
+    });
+    calendar.render();
+});
+function secondsToHMS(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const formattedHours = String(hours).padStart(2, '0');
+  const formattedMinutes = String(minutes).padStart(2, '0');
+  return `${formattedHours}:${formattedMinutes}:00`;
+}
+</script>
+{% endblock %}

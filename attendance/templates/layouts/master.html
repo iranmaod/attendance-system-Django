@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<head>
+    <title>{% block title %}{% endblock %}</title>
+    {% load static %} 
+    
+  <link rel="stylesheet" href="{% static '/css/flipTimer.css' %}" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.4.1/dist/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+  <style>
+    body {
+      background-color: #b8d6df;
+      color: white;
+    }
+    .flipTimer {
+      margin: 100px auto 0;
+      width: 500px;
+    }
+    .fc-sat { 
+      color:white;  
+      border-color: black;  
+      background-color: #87979F;
+    }
+    .fc-sun { 
+      color:white;  
+      border-color: black;  
+      background-color: #87979F;
+    }
+  </style>
+<!-- <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script> -->
+<script>
+  // window.OneSignalDeferred = window.OneSignalDeferred || [];
+  // OneSignalDeferred.push(function(OneSignal) {
+  //   OneSignal.init({
+  //     appId: "4884e1b9-2418-48df-af91-bab9737ea242",
+  //     safari_web_id: "web.onesignal.auto.639a6cf4-24b5-4e34-8f2b-dfd5fe45e04f",
+  //     notifyButton: {
+  //       enable: true,
+  //     },
+  //     subdomainName: "attendance-ade",
+  //   });
+  // });
+</script>
+</head>
+<body>
+    {% block content %}
+    {% endblock %}
+    
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/push.js/1.0.12/push.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>   
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.9.0/fullcalendar.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fullcalendar/3.9.0/fullcalendar.js"></script>
+
+  <script>
+    document.getElementById('week-day').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+    $(document).ready(function () {
+        var calendar = $('#calendar').fullCalendar({
+            header: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'month,agendaWeek,agendaDay'
+            },
+            events: '/all_attendance',
+            eventClick: function(info) {
+              if(info.title){
+                start_time = info.start._i
+                end_time = info.end._i
+                total_time = secondsToHMS(info.total);
+                start = new Date(start_time);
+                var hours = start.getHours() ; // gives the value in 24 hours format
+                var AmOrPm = hours >= 12 ? 'pm' : 'am';
+                hours = (hours % 12) || 12;
+                var minutes = start.getMinutes() ;
+                var finalstart = hours + ":" + minutes + " " + AmOrPm; 
+
+                end = new Date(end_time);
+                var hours = end.getHours() ; // gives the value in 24 hours format
+                var AmOrPm = hours >= 12 ? 'pm' : 'am';
+                hours = (hours % 12) || 12;
+                var minutes = end.getMinutes() ;
+                var finalend = hours + ":" + minutes + " " + AmOrPm; 
+                // console.log(finalTime)
+                Swal.fire({
+                  title: "Task/Break: "+info.title,
+                  text: "Start time: "+finalstart+"\n End time: "+finalend+ "\n Total time: "+total_time,
+                  // icon: "success",
+                  // timer: 2000
+                })
+                // alert('Event: ' + info.title);
+              }
+            }
+        })
+    })
+    
+    $(document).ready(function() {
+      var checkInput = (e) => {
+        const content = $("#my_task").val().trim();
+        // alert(content)
+        $('#start').prop('disabled', content === '');
+        $('#start').addClass('btn-success',content === '');
+        $('#start').removeClass('btn-secondary',content === '');
+      };
+      $(document).on('keyup', '#my_task', checkInput);
+
+      //Callback works only with direction = "down"
+      // $('.flipTimer').flipTimer({ direction: 'up' });
+
+      $("#atten_form").submit(function(e){
+        e.preventDefault();
+        $("#start").prop('disabled', true);
+        
+        var $form = $(this);
+        var serializedData = $form.serialize();
+        Swal.fire({
+          title: "Are you sure?",
+          text: "Do you want to start new task!",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Save task!",
+          cancelButtonText: "No!",
+          reverseButtons: true,
+          dangerMode: false,
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+        })
+        .then((result) => {
+          if (result.isConfirmed) {
+            $("#start").text('Processing...');
+            $.ajax({
+              url: 'start/',
+              type: "POST",
+              data: serializedData,
+              dataType: 'json',
+              success: function (data) {
+                // console.log(data)
+                $('#my_task').val('');
+                $("#submit").prop('disabled', false);
+                $("#start").prop('disabled', false);
+                $("#start").text('Add New Task');
+                $("#break").text('Break');
+                if(data.warn_msg){
+                  Push.create("Attendance!", {
+                      body: data.warn_msg,
+                      icon: "path/to/icon.png",
+                      timeout: 4000,
+                      onClick: function () {
+                          
+                      }
+                  });
+                  Swal.fire({
+                    title: "Attendance!",
+                    text: data.warn_msg,
+                    icon: "warning",
+                    timer: 2000
+                    }).then(() => {
+                  })
+                }else{
+                  Push.create("Attendance!", {
+                      body: data.msg,
+                      icon: "path/to/icon.png",
+                      timeout: 4000,
+                      onClick: function () {
+                          
+                      }
+                  });
+                  Swal.fire({
+                    title: "Attendance!",
+                    text: data.msg,
+                    icon: "success",
+                    timer: 2000
+                    }).then(() => {
+                      location.reload()
+                  })
+                }
+              }
+            });
+          } else if (result.dismiss === Swal.DismissReason.cancel) {
+                    // Handle cancellation if needed
+          }
+        });
+        
+      })
+
+    });
+
+$(function() {
+$(document).on('click', '#leaving', function (e) {
+    var $btn = $(this).prop('disabled', true);
+    var task = $('#my_task').val();
+    // alert(e.value)
+    $.ajax({
+        url: 'start/',
+        type: "POST",
+        data: {ended:1, csrfmiddlewaretoken: '{{ csrf_token }}',task:task},
+        dataType: 'json',
+        success: function (data) {
+          // console.log(data)
+          $('#my_task').val('');
+          $("#leaving").prop('disabled', false);
+          if(data.warn_msg){
+            Push.create("Attendance!", {
+                body: data.warn_msg,
+                icon: "path/to/icon.png",
+                timeout: 4000,
+                onClick: function () {
+                    
+                }
+            });
+            Swal.fire({
+              title: "Attendance!",
+              text: data.warn_msg,
+              icon: "warning",
+              timer: 2000
+              }).then(() => {
+            })
+          }else{
+            Push.create("Attendance!", {
+                body: data.msg,
+                icon: "path/to/icon.png",
+                timeout: 4000,
+                onClick: function () {
+                    
+                }
+            });
+            Swal.fire({
+              title: "Attendance!",
+              text: data.msg,
+              icon: "success",
+              timer: 2000
+              }).then(() => {
+                location.reload()
+            })
+          }             
+        }
+    });
+  });
+});
+$(function() {
+$(document).on('click', '#update_task', function (e) {
+    var $btn = $(this).prop('disabled', true);
+    var task = $('#my_task').val();
+    // alert(e.value)
+    $.ajax({
+        url: 'start/',
+        type: "POST",
+        data: {update_task:1, csrfmiddlewaretoken: '{{ csrf_token }}',task:task},
+        dataType: 'json',
+        success: function (data) {
+          // console.log(data)
+          $('#my_task').val('');
+          $("#update_task").prop('disabled', false);
+          if(data.warn_msg){
+            Push.create("Attendance!", {
+                body: data.warn_msg,
+                icon: "path/to/icon.png",
+                timeout: 4000,
+                onClick: function () {
+                    
+                }
+            });
+            Swal.fire({
+              title: "Attendance!",
+              text: data.warn_msg,
+              icon: "warning",
+              timer: 2000
+              }).then(() => {
+            })
+          }else{
+            Push.create("Attendance!", {
+                body: data.msg,
+                icon: "path/to/icon.png",
+                timeout: 4000,
+                onClick: function () {
+                    
+                }
+            });
+            Swal.fire({
+              title: "Attendance!",
+              text: data.msg,
+              icon: "success",
+              timer: 2000
+              }).then(() => {
+                location.reload()
+            })
+          }            
+        }
+    });
+  });
+});
+$(function() {
+$(document).on('click', '#break', function (e) {
+    var $btn = $(this).prop('disabled', true);
+    var task = $('#my_task').val();
+    // alert(e.value)
+    $.ajax({
+        url: 'start/',
+        type: "POST",
+        data: {break:1, task_type:0, csrfmiddlewaretoken: '{{ csrf_token }}',task:task},
+        dataType: 'json',
+        success: function (data) {
+          // console.log(data)
+          $("#leaving").prop('disabled', false);
+          $('#my_task').val('');
+          if(data.warn_msg){
+            Push.create("Attendance!", {
+                body: data.warn_msg,
+                icon: "path/to/icon.png",
+                timeout: 4000,
+                onClick: function () {
+                    
+                }
+            });
+            Swal.fire({
+              title: "Attendance!",
+              text: data.warn_msg,
+              icon: "warning",
+              timer: 2000
+              }).then(() => {
+            })
+          }else{
+            Push.create("Attendance!", {
+                body: data.msg,
+                icon: "path/to/icon.png",
+                timeout: 4000,
+                onClick: function () {
+                    
+                }
+            });
+            Swal.fire({
+              title: "Attendance!",
+              text: data.msg,
+              icon: "success",
+              timer: 2000
+              }).then(() => {
+                location.reload()
+            })
+          }           
+        }
+    });
+  });
+});
+$(function() {
+$(document).on('click', '#back', function (e) {
+    var $btn = $(this).prop('disabled', true);
+    var task = $('#my_task').val();
+    // alert(e.value)
+    $.ajax({
+        url: 'start/',
+        type: "POST",
+        data: {back:1, csrfmiddlewaretoken: '{{ csrf_token }}',task:task},
+        dataType: 'json',
+        success: function (data) {
+          // console.log(data)
+          $("#leaving").prop('disabled', false);
+          if(data.warn_msg){
+            Push.create("Attendance!", {
+                body: data.warn_msg,
+                icon: "path/to/icon.png",
+                timeout: 4000,
+                onClick: function () {
+                    
+                }
+            });
+            Swal.fire({
+              title: "Attendance!",
+              text: data.warn_msg,
+              icon: "warning",
+              timer: 2000
+              }).then(() => {
+            })
+          }else{
+            Push.create("Attendance!", {
+                body: data.msg,
+                icon: "path/to/icon.png",
+                timeout: 4000,
+                onClick: function () {
+                    
+                }
+            });
+            Swal.fire({
+              title: "Attendance!",
+              text: data.msg,
+              icon: "success",
+              timer: 2000
+              }).then(() => {
+                location.reload()
+            })
+          }          
+        }
+    });
+  });
+});
+
+
+function myTimer() {
+  // Push.create("Attendance!", {
+  //     body: 'Testing',
+  //     icon: "path/to/icon.png",
+  //     timeout: 4000,
+  //     onClick: function () {
+          
+  //     }
+  // });
+  var st_orig =  document.getElementById('st_orig').innerHTML;
+  if(document.getElementById('end_orig').innerHTML != null){
+    var end_orig =  document.getElementById('end_orig').innerHTML;
+  }
+  if(document.getElementById('break_time').innerHTML != null){
+    var break_time =  document.getElementById('break_time').innerHTML;
+  }else{
+    var break_time =  0;
+  }
+  const time3 = secondsToHMS(break_time);
+
+  
+  
+  if(end_orig){
+    var currentTime = end_orig;
+  }else{
+    var currentTime = getCurrentTimeInLondon();
+  }
+
+  $('#running_time_hours').empty();
+  $('#running_time_minutes').empty();
+  $('#running_time_secons').empty();
+  const time1 = st_orig;
+  const time2 = currentTime;
+  // console.log(time2)
+  const timeDifference = calculateTimeDifference(time1, time2, time3);
+ 
+  // console.log(`Hours: ${timeDifference.hours}, Minutes: ${timeDifference.minutes}, Seconds: ${timeDifference.seconds}`);
+
+  $("#running_time_hours" ).append(`${timeDifference.hours}`);
+  $("#running_time_minutes" ).append(`${timeDifference.minutes}`);
+  $("#running_time_secons" ).append(`${timeDifference.seconds}`);
+}
+
+function secondsToHMS(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const formattedHours = String(hours).padStart(2, '0');
+  const formattedMinutes = String(minutes).padStart(2, '0');
+  return `${formattedHours}:${formattedMinutes}:00`;
+}
+function secondsToHMS2(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secondss = seconds % 60;
+  const formattedHours = String(hours).padStart(2, '0');
+  const formattedMinutes = String(minutes).padStart(2, '0');
+  const formattedSeconds = String(secondss).padStart(2, '0');
+  return `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+}
+function timeToSeconds(timeString) {
+  const [hours, minutes, seconds] = timeString.split(':').map(Number);
+  const totalSeconds = hours * 3600 + minutes * 60 + seconds;
+  return totalSeconds;
+}
+function calculateTimeDifference(time1, time2, time3) {
+  // Parse the time strings into Date objects
+  const date1 = timeToSeconds(time1);
+  const date2 = timeToSeconds(time2);
+  const date3 = timeToSeconds(time3);
+  // console.log(totalSeconds)
+  var timeDiff = date2 - date1;
+  var timeDiff = timeDiff - date3;
+  // Calculate hours and minutes
+  const tim = secondsToHMS2(timeDiff);
+  const total = tim.split(":")
+  let hours = total[0]
+  let minutes = total[1]
+  let seconds = total[2]
+
+  return { hours, minutes, seconds };
+}
+
+function getCurrentTimeInLondon() {
+  // Create a new Date object in the Europe time zone
+  const LondonTime = new Date().toLocaleString("en-US", { timeZone: "Europe/London" });
+
+  // Parse the New Europe string into a Date object
+  const LondonDate = new Date(LondonTime);
+
+   // Add 1 minute to the current time
+   LondonDate.setMinutes(LondonDate.getMinutes() + 1);
+
+  // Check if adding 1 to minutes caused it to exceed 59
+
+  if (LondonDate.getMinutes() === 0) {
+    // Increment the hours
+    LondonDate.setHours(LondonDate.getHours() + 1);
+  }
+  // Extract hours, minutes, and seconds in 24-hour format
+  const hours = LondonDate.getHours();
+  const minutes = LondonDate.getMinutes();
+  const seconds = LondonDate.getSeconds();
+
+  // Format hours, minutes, and seconds with leading zeros if needed
+  const formattedHours = String(hours).padStart(2, '0');
+  const formattedMinutes = String(minutes).padStart(2, '0');
+  const formattedSeconds = String(seconds).padStart(2, '0');
+  const timeString = `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+  return timeString;
+}
+
+
+</script>
+{% if today_atten.start_time %}
+<script>
+    setInterval(myTimer, 1000);
+</script>
+{% endif %}
+</body>
+</html>

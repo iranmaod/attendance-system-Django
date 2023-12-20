@@ -1,0 +1,296 @@
+{% extends "layouts/master.html" %}
+
+{% block title %}
+  Mark Attendance
+{% endblock %}
+
+
+{% block content %}
+<h1 class="text-center py-3 mb-0">NexVisTech Attendance System</h1>
+
+<div class="navbar" >
+    <div class="container">
+        <div class="row justify-content-between w-100">
+            <ul class="nav nav-tabs" id="myTab" role="tablist">
+                <li class="nav-item mr-1" role="presentation">
+                    <button class="nav-link active" id="home-tab" data-bs-toggle="tab" data-bs-target="#home" type="button" role="tab" aria-controls="home-tab" aria-selected="true">Timer</button>
+                </li>
+                <li class="nav-item mr-1" role="presentation">
+                    <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#daily" type="button" role="tab" aria-controls="daily-tab" aria-selected="false">Daily Task</button>
+                </li>
+                <li class="nav-item mr-1" role="presentation">
+                    <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-controls="profile-tab" aria-selected="false">Task History</button>
+                </li>
+                <li class="nav-item mr-1" role="presentation">
+                </li>
+            </ul>
+            <div class="">
+                {% if username.is_superuser %}
+                    <a class="btn btn-primary" href="/admin">Admin Panel</a>
+                {% else %}
+                    <a class="btn btn-primary" href="/admin">User Panel</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div >
+    <div class="tab-content" id="myTabContent">
+        <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
+            <div  id="timer_section" class="w-50 mx-auto my-5">
+                <div class="running_time">   
+                    <h2 class="text-center">Welcome {{username.username}}</h2>
+                    {% if today_atten.start_time %}
+                    <h5 class="text-center">Your Start time: {{start }}</h5>
+                    <h5 id="st_orig" style="display: none;">{{st_orig }}</h5>
+                    <h5 id="end_orig" style="display: none;">{{end_orig }}</h5>
+                    <h5 id="break_time" style="display: none;">{{total_break_time }}</h5>
+                    {% endif %}
+                    {% if today_atten.end_time %}
+                    <h5>Your End/Break time: {{end}}</h5>
+                    
+                    {% endif %}
+                  
+                    <div class="running_time mb-5 mt-3">
+                        <div class="c-clock">
+                            <div class="week-day" id="week-day"></div>
+                            <div class="time d-flex">
+                                <div class="clock-hours" id="running_time_hours">00</div>
+                                <div class="colon">:</div>
+                                <div class="clock-mins" id="running_time_minutes">00</div>
+                                <div class="clock-seconds" id="running_time_secons">00</div>
+                            </div>
+                            <div class="today-date">{{today_date}}</div>
+                        </div>
+                    </div>
+
+                    {% if break_yes %}
+                    <h2 class="bg-danger">Current Task: ON BREAK</h2>
+                    {% else %}
+                    <h2 class="bg-success p-2">Current Task: {{latest_task}}</h2>
+                    {% endif %}
+                    <form id="atten_form">
+                        <input type="hidden" value="{{ csrf_token }}" name="csrfmiddlewaretoken">
+                        <input type="hidden" value="1" name="started">
+                        <input type="hidden" value="1" name="task_type">
+                        <div class="{{break_yes|yesno:"d-none, "}}">
+                            <textarea class="form-control" name="task" id="my_task" cols="10" rows="5" placeholder="Enter task or break reason here...">{{latest_task}}</textarea>
+                        </div>
+                        <div class="d-flex justify-content-around mt-2 ">
+                            {% if break_yes %}
+
+                            {% else %}
+                                {% if today_atten %}
+                                <input value="Update Current Task" name="update_task" type="button" id="update_task" class="btn btn-primary">
+                                {% endif %}
+                                <button style="text-align:center;" disabled id="start" class="btn btn-secondary">
+                                    {{ today_atten|yesno:"Add New Task,Start The Day" }}
+                                </button>
+                            {% endif %}
+
+                            {% if today_atten is not empty %}
+                            {% if break_yes %}
+                                <input id="back" class="btn btn-success" type="button" name="back" value="Back To Task">
+                            {% else %}
+                                <input id="break" class="btn btn-warning" type="button" name="break" value="Take A Break">
+                            {% endif %}
+                            {% endif %}
+                            {% if break_yes %}
+                            
+                            {% else %}
+                                {% if today_atten %}
+                                    <input  id="leaving" class="btn btn-danger" type="button" name="end_time" value="Close The Day">
+                                {% endif %}
+                            {% endif %}
+                            
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="tab-pane fade show " id="daily" role="tabpanel" aria-labelledby="daily-tab">
+            <div class="w-50 mx-auto my-5">
+                <h3>Task Details of {{today_date}}</h3>
+                <div class="container px-0">       
+                    <table class="table table-bordered">
+                        <thead>
+                          <tr>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Task</th>
+                            <th>Task Type</th>
+                            <th>Time</th>
+                            <th>Device Info</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                            {% if my_tasks %}
+                        {% for task in my_tasks %}
+                        <tr class="text-white {{task.task_type|yesno:"bg-success,bg-danger"}}">
+                            <td id="st_task-{{task.id}}">
+                                <p id="task_st-{{task.id}}" style="display: none;">{{task.start_time|date:'Y-m-d H:i:s'}}</p>
+                                <script>
+                                    var task_st  = document.getElementById('task_st-{{task.id}}').innerHTML;
+                                    
+                                    var task_st = new Date(task_st);
+                                    task_st.setHours(task_st.getHours() + 5);   
+                                    var task_st = task_st.toLocaleTimeString("en-US", {timeZone: "Asia/Karachi"}, { hour: '2-digit', minute: '2-digit' });
+                                    // console.log(task_st)
+                                    if(task_st != 'Invalid Date'){
+                                        document.getElementById('st_task-{{task.id}}').innerHTML = task_st;
+                                    }else{
+                                        document.getElementById('st_task-{{task.id}}').innerHTML = 'N/A';
+                                    }
+                                    
+                                </script>  
+                            </td>
+                            <td id="en_task-{{task.id}}">
+                                <p id="task_en-{{task.id}}" style="display: none;">{{task.end_time|date:'Y-m-d H:i:s'}}</p> 
+                                <script>
+                                    var task_en  = document.getElementById('task_en-{{task.id}}').innerHTML;
+                                    var task_en = new Date(task_en);
+                                    task_en.setHours(task_en.getHours() + 5);
+                                    // console.log(task_en)
+                                    var task_en = task_en.toLocaleTimeString("en-US", {timeZone: "Asia/Karachi"}, { hour: '2-digit', minute: '2-digit' });
+                                    if(task_en != 'Invalid Date'){
+                                        document.getElementById('en_task-{{task.id}}').innerHTML = task_en;
+                                    }else{
+                                        document.getElementById('en_task-{{task.id}}').innerHTML = 'N/A';
+                                    }  
+                                </script>
+                            </td>
+                            <td>{{task.task}}</td>
+                            <td>{{task.task_type|yesno:"Task,Break"}} </td>
+                            <td id="total_task-{{task.id}}">
+                                <p id="total_task_en-{{task.id}}" style="display: none;">{{task.end_time|date:'Y-m-d H:i:s'}}</p> 
+                                <p id="total_task_st-{{task.id}}" style="display: none;">{{task.start_time|date:'Y-m-d H:i:s'}}</p> 
+                                <script>
+                                    var task_en  = document.getElementById('total_task_en-{{task.id}}').innerHTML;
+                                    var task_en = new Date(task_en);
+        
+                                    var task_st  = document.getElementById('total_task_st-{{task.id}}').innerHTML;
+                                    var task_st = new Date(task_st);
+        
+                                    var total_time = task_en - task_st;
+                                    var hours = Math.floor(total_time / (1000 * 60 * 60));
+                                    if(hours.toString().length < 2)
+                                        hours= "0"+hours;
+                                    var minutes = Math.floor((total_time % (1000 * 60 * 60)) / (1000 * 60));
+                                    if(minutes.toString().length < 2)
+                                        minutes= "0"+minutes;
+                                    if(Number.isNaN(minutes)){
+                                        document.getElementById('total_task-{{task.id}}').innerHTML = 'N/A';
+                                    }else{
+                                        document.getElementById('total_task-{{task.id}}').innerHTML = `${hours}h : ${minutes}m`;
+                                    }  
+                                    // console.log(minutes)
+                                </script>
+                            </td>
+                            <td>
+                            {% if task.os == 'Windows' %}
+                                🖥️
+                            {% else %}
+                                📱
+                            {% endif %} <br> IP:  {{ task.ip }} <br> Browser: {{ task.browser }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+                <!-- <table id="task_list" class="table table-responsive table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Start Time</th>
+                            <th>End Time</th>
+                            <th>Task</th>
+                            <th>Task Type</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if my_tasks %}
+                        {% for task in my_tasks %}
+                        <tr class="{{task.task_type|yesno:"bg-success,bg-danger"}}">
+                            <td id="st_task-{{task.id}}">
+                                <p id="task_st-{{task.id}}" style="display: none;">{{task.start_time|date:'Y-m-d H:i:s'}}</p>
+                                <script>
+                                    var task_st  = document.getElementById('task_st-{{task.id}}').innerHTML;
+                                    // console.log(task_st)
+                                    var task_st = new Date(task_st);
+                                    task_st.setHours(task_st.getHours() + 5);   
+                                    var task_st = task_st.toLocaleTimeString("en-US", {timeZone: "Asia/Karachi"}, { hour: '2-digit', minute: '2-digit' });
+                                    if(task_st != 'Invalid Date'){
+                                        document.getElementById('st_task-{{task.id}}').innerHTML = task_st;
+                                    }else{
+                                        document.getElementById('st_task-{{task.id}}').innerHTML = 'N/A';
+                                    }
+                                    
+                                </script>  
+                            </td>
+                            <td id="en_task-{{task.id}}">
+                                <p id="task_en-{{task.id}}" style="display: none;">{{task.end_time|date:'Y-m-d H:i:s'}}</p> 
+                                <script>
+                                    var task_en  = document.getElementById('task_en-{{task.id}}').innerHTML;
+                                    var task_en = new Date(task_en);
+                                    task_en.setHours(task_en.getHours() + 5);
+                                    // console.log(task_en)
+                                    var task_en = task_en.toLocaleTimeString("en-US", {timeZone: "Asia/Karachi"}, { hour: '2-digit', minute: '2-digit' });
+                                    if(task_en != 'Invalid Date'){
+                                        document.getElementById('en_task-{{task.id}}').innerHTML = task_en;
+                                    }else{
+                                        document.getElementById('en_task-{{task.id}}').innerHTML = 'N/A';
+                                    }  
+                                </script>
+                            </td>
+                            <td>{{task.task}}</td>
+                            <td>{{task.task_type|yesno:"Task,Break"}} </td>
+                            <td id="total_task-{{task.id}}">
+                                <p id="total_task_en-{{task.id}}" style="display: none;">{{task.end_time|date:'Y-m-d H:i:s'}}</p> 
+                                <p id="total_task_st-{{task.id}}" style="display: none;">{{task.start_time|date:'Y-m-d H:i:s'}}</p> 
+                                <script>
+                                    var task_en  = document.getElementById('total_task_en-{{task.id}}').innerHTML;
+                                    var task_en = new Date(task_en);
+        
+                                    var task_st  = document.getElementById('total_task_st-{{task.id}}').innerHTML;
+                                    var task_st = new Date(task_st);
+        
+                                    var total_time = task_en - task_st;
+                                    var hours = Math.floor(total_time / (1000 * 60 * 60));
+                                    if(hours.toString().length < 2)
+                                        hours= "0"+hours;
+                                    var minutes = Math.floor((total_time % (1000 * 60 * 60)) / (1000 * 60));
+                                    if(minutes.toString().length < 2)
+                                        minutes= "0"+minutes;
+                                    if(Number.isNaN(minutes)){
+                                        document.getElementById('total_task-{{task.id}}').innerHTML = 'N/A';
+                                    }else{
+                                        document.getElementById('total_task-{{task.id}}').innerHTML = `${hours}h : ${minutes}m`;
+                                    }  
+                                    // console.log(minutes)
+                                </script>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table> -->
+            </div>
+        </div>
+        <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+            
+            <div class="w-50 mx-auto my-5">
+                <div id="calendar"></div>
+              
+            </div>
+        </div>
+    </div>
+
+    
+    
+</div>
+
+
+
+{% endblock %}

@@ -1,0 +1,206 @@
+{% extends 'admin/base_site.html' %}
+
+
+{% block content %}
+
+{% load i18n admin_urls %}
+
+{% block breadcrumbs %}
+    <div class="breadcrumbs">
+        <a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+        &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+        &rsaquo; <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+        &rsaquo; {{ object }}
+    </div>
+{% endblock %}
+<div class="card" bis_skin_checked="1" style="width: 100%;">
+    <div class="card-body" bis_skin_checked="1">
+        <nav>
+            <div class="nav nav-tabs" id="nav-tab" role="tablist">
+              <button class="nav-link active" id="nav-task-tab" data-bs-toggle="tab" data-bs-target="#nav-task" type="button" role="tab" aria-controls="nav-task" aria-selected="true">Today Attendance</button>
+              <button class="nav-link" id="nav-calendar-tab" data-bs-toggle="tab" data-bs-target="#nav-calendar" type="button" role="tab" aria-controls="nav-calendar" aria-selected="false">Calendar View</button>
+            </div>
+        </nav>
+        <div class="tab-content" id="nav-tabContent">
+            <div class="tab-pane fade show active" id="nav-task" role="tabpanel" aria-labelledby="nav-task-tab" tabindex="0">
+                <div  class="card" bis_skin_checked="1">
+
+
+                    <div class="p-5" bis_skin_checked="1">
+            
+            
+                        <table id="task_list" class="table">
+                            <thead>
+                                <tr>
+                                    <th>Start Time</th>
+                                    <th>End Time</th>
+                                    <th>Task</th>
+                                    <th>Task Type</th>
+                                    <th>Time</th>
+                                    <th>Device Info</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if user_tasks %}
+                                {% for task in user_tasks %}
+                                <tr class="{{task.task_type|yesno:"bg-success,bg-danger"}}">
+                                    <td id="st_task-{{task.id}}">
+                                        <p id="task_st-{{task.id}}" style="display: none;">{{task.start_time|date:'Y-m-d H:i:s'}}</p>
+                                        <script>
+                                            var task_st  = document.getElementById('task_st-{{task.id}}').innerHTML;
+                                            
+                                            var task_st = new Date(task_st);
+                                            task_st.setHours(task_st.getHours() + 10);
+                                            task_st = task_st.toLocaleTimeString("en-US", {timeZone: "Asia/Karachi"}, { hour: '2-digit', minute: '2-digit' });
+                                            // console.log(task_st);
+                                            if(task_st != 'Invalid Date'){
+                                                document.getElementById('st_task-{{task.id}}').innerHTML = task_st;
+                                            }else{
+                                                document.getElementById('st_task-{{task.id}}').innerHTML = 'N/A';
+                                            }
+                                            
+                                        </script>  
+                                    </td>
+                                    <td id="en_task-{{task.id}}">
+                                        <p id="task_en-{{task.id}}" style="display: none;">{{task.end_time|date:'Y-m-d H:i:s'}}</p> 
+                                        <script>
+                                            var task_en  = document.getElementById('task_en-{{task.id}}').innerHTML;
+                                            var task_en = new Date(task_en);
+                                            task_en.setHours(task_en.getHours() + 10);
+                                            // console.log(task_en)
+                                            var task_en = task_en.toLocaleTimeString("en-US", {timeZone: "Asia/Karachi"}, { hour: '2-digit', minute: '2-digit' });
+                                            if(task_en != 'Invalid Date'){
+                                                document.getElementById('en_task-{{task.id}}').innerHTML = task_en;
+                                            }else{
+                                                document.getElementById('en_task-{{task.id}}').innerHTML = 'N/A';
+                                            }  
+                                        </script>
+                                    </td>
+                                    <td>{{task.task}}</td>
+                                    <td>{{task.task_type|yesno:"Task,Break"}} </td>
+                                    <td id="total_task-{{task.id}}">
+                                        <p id="total_task_en-{{task.id}}" style="display: none;">{{task.end_time|date:'Y-m-d H:i:s'}}</p> 
+                                        <p id="total_task_st-{{task.id}}" style="display: none;">{{task.start_time|date:'Y-m-d H:i:s'}}</p> 
+                                        <script>
+                                            var task_en  = document.getElementById('total_task_en-{{task.id}}').innerHTML;
+                                            var task_en = new Date(task_en);
+            
+                                            var task_st  = document.getElementById('total_task_st-{{task.id}}').innerHTML;
+                                            var task_st = new Date(task_st);
+            
+                                            var total_time = task_en - task_st;
+                                            var hours = Math.floor(total_time / (1000 * 60 * 60));
+                                            if(hours.toString().length < 2)
+                                                hours= "0"+hours;
+                                            var minutes = Math.floor((total_time % (1000 * 60 * 60)) / (1000 * 60));
+                                            if(minutes.toString().length < 2)
+                                                minutes= "0"+minutes;
+                                            if(Number.isNaN(minutes)){
+                                                document.getElementById('total_task-{{task.id}}').innerHTML = 'N/A';
+                                            }else{
+                                                document.getElementById('total_task-{{task.id}}').innerHTML = `${hours}h : ${minutes}m`;
+                                            }  
+                                            // console.log(minutes)
+                                        </script>
+                                    </td>
+                                    <td>
+                                        {% if task.os == 'Windows' %}
+                                            🖥️
+                                        {% else %}
+                                            📱
+                                        {% endif %} <br> IP:  {{ task.ip }} <br> Browser: {{ task.browser }}</td>
+                                </tr>
+                                {% endfor %}
+                                {% endif %}
+                            </tbody>
+                        </table>
+            
+            
+                    </div>
+            
+                </div>
+            </div>
+            <div class="tab-pane fade" id="nav-calendar" role="tabpanel" aria-labelledby="nav-calendar-tab" tabindex="0">
+                <div class="card " bis_skin_checked="1">
+                    <div class="p-5 card-body" bis_skin_checked="1">
+                        <div id="calendar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% block extrahead %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>  
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js'></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+{% endblock %}
+<script>
+    var events = [];
+</script>
+{% for task in all_tasks %}
+<script>
+    events.push({
+        id: '{{task.id}}',
+        start: '{{task.start}}',
+        end: '{{task.end}}',
+        title: '{{task.title}}',
+        color: '{{task.color}}',
+    });
+</script>
+{% endfor %}
+<script>
+function initializeCalendar() {
+    var calendarEl = document.getElementById('calendar');
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        events: events,
+        eventClick: function(info) {
+            if(info.event.title){
+                start_time = info.event.start
+                end_time = info.event.end
+                var start = new Date(start_time);
+                start.setHours(start.getHours() + 5);
+
+                var hours = start.getHours();
+                var AmOrPm = hours >= 12 ? 'pm' : 'am';
+                hours = (hours % 12) || 12;
+                var minutes = start.getMinutes();
+                var finalstart = hours + ":" + (minutes < 10 ? "0" : "") + minutes + " " + AmOrPm;
+                end = new Date(end_time);
+                end.setHours(end.getHours() + 5);
+                var hours = end.getHours();
+                var AmOrPm = hours >= 12 ? 'pm' : 'am';
+                hours = (hours % 12) || 12;
+                var minutes = end.getMinutes() ;
+                var finalend = hours + ":" + (minutes < 10 ? "0" : "") + minutes + " " + AmOrPm;
+                var total_time = calculateTimeDifference(start, end);
+                Swal.fire({
+                  title: "Task/Break: "+info.event.title,
+                  text: "Start time: "+finalstart+"\n End time: "+finalend+ "\n Total time: "+total_time.hours+":"+total_time.minutes,
+                })
+            }
+        }
+    });
+    calendar.render();
+}
+
+$("#nav-calendar-tab").on("click",function() {
+    initializeCalendar();
+});
+function calculateTimeDifference(startDate, endDate) {
+  const timeDiff = endDate - startDate;
+
+  const hours = Math.floor(timeDiff / 3600000);
+  const minutes = Math.floor((timeDiff % 3600000) / 60000); 
+  const seconds = Math.floor((timeDiff % 60000) / 1000); 
+
+  return { hours, minutes, seconds };
+}
+</script>
+{% endblock %}

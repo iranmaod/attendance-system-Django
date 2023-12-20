@@ -1,0 +1,115 @@
+{% extends 'admin/base_site.html' %}
+
+
+{% block content %}
+
+{% load i18n admin_urls %}
+
+{% block breadcrumbs %}
+    
+{% endblock %}
+<div class="custom-dashboard">
+    <h2>Employee Dashboard</h2>
+    <!-- Add your custom content here -->
+</div>
+<div class="container">
+    <div class="row">
+        <div style="width:100%;" class="card" bis_skin_checked="1">
+            <div class="card-body" bis_skin_checked="1">
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% block extrahead %}
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>  
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js'></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+{% endblock %}
+<script>
+    function calculateTimeDifference(startDate, endDate) {
+      const timeDiff = endDate - startDate;
+    
+      const hours = Math.floor(timeDiff / 3600000);
+      const minutes = Math.floor((timeDiff % 3600000) / 60000); 
+      const seconds = Math.floor((timeDiff % 60000) / 1000); 
+    
+      return { hours, minutes, seconds };
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+        var calendarEl = document.getElementById('calendar');
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            events: '/user_ttendance',
+            eventClick: function(info) {
+                // console.log(info)
+                if(info.event.id){
+                    $.ajax({
+                        url: '/get_tasks/',
+                        type: "POST",
+                        data: {csrfmiddlewaretoken: '{{ csrf_token }}', atten_id:info.event.id},
+                        dataType: 'json',
+                        success: function (data) {
+    
+                            const table = document.createElement("table");
+                            table.classList.add("table");
+    
+                            // Create the table header row
+                            const headerRow = table.insertRow(0);
+                            headerRow.innerHTML = "<th>Task</th><th>Start Time</th><th>End Time</th><th>Task Type</th><th>Total Time</th>";
+    
+                            // Add table rows with data
+                            data.forEach((item, index) => {
+                                const row = table.insertRow(index + 1);
+                                const tot = item.total
+                                const total = secondsToHMS(tot);
+                                row.innerHTML = `<td>${item.title}</td><td>${item.start}</td><td>${item.end}</td><td>${item.type}</td><td>${total}</td>`;
+                            });
+    
+                            // Convert the table to an HTML string
+                            const tableHTML = table.outerHTML;
+                            
+                            console.log(tableHTML)
+                            start_time = info.event.start
+                            end_time = info.event.end
+                            start = new Date(start_time);
+                            var hours = start.getHours() ;
+                            var AmOrPm = hours >= 12 ? 'pm' : 'am';
+                            hours = (hours % 12) || 12;
+                            var minutes = start.getMinutes() ;
+                            var finalstart = hours + ":" + minutes + " " + AmOrPm; 
+    
+                            end = new Date(end_time);
+                            var hours = end.getHours() ;
+                            var AmOrPm = hours >= 12 ? 'pm' : 'am';
+                            hours = (hours % 12) || 12;
+                            var minutes = end.getMinutes() ;
+                            var finalend = hours + ":" + minutes + " " + AmOrPm; 
+                            var total_time = calculateTimeDifference(start, end);
+                            Swal.fire({
+                                // title: "Task: "+info.event.title,
+                                title: "Task: "+info.event.title+"\n Start time: "+finalstart+"\n End time: "+finalend+ "\n Total time: "+total_time.hours+":"+total_time.minutes,
+                                // html:tableHTML
+                            })
+                        }
+                    });
+                    
+                }
+            }
+        });
+        calendar.render();
+    });
+    function secondsToHMS(seconds) {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const formattedHours = String(hours).padStart(2, '0');
+      const formattedMinutes = String(minutes).padStart(2, '0');
+      return `${formattedHours}:${formattedMinutes}:00`;
+    }
+</script>
+{% endblock %}

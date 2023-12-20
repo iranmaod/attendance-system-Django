@@ -1,0 +1,185 @@
+{% extends 'admin/base_site.html' %}
+
+
+{% block content %}
+
+{% load i18n admin_urls %}
+
+{% block breadcrumbs %}
+
+{% endblock %}
+<div class="custom-dashboard">
+    <h2>Welcome to the Admin Dashboard</h2>
+    <p>{{ some_data }}</p>
+    <!-- Add your custom content here -->
+</div>
+<div class="container">
+    <div class="row">
+        <div class="col-4">
+            <a href="auth/user/">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="d-flex flex-nowrap align-items-center justify-content-center">
+                            <i class="fa-solid fa-users mr-2"></i>
+                            <h5 class="card-title">Total Employees</h5>
+                        </div>
+                        <div>
+                            <p id="total_employee" class="display-4 font-weight-bold m-0"></p>
+                        </div>  
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-4">
+            <a href="auth/user/">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="d-flex flex-nowrap align-items-center justify-content-center">
+                            <i class="fa-solid fa-briefcase mr-2"></i>
+                            <h5 class="card-title">Active</h5>
+                        </div>
+                        <div>
+                            <p id="active" class="display-4 font-weight-bold m-0"></p>
+                        </div>  
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-4">
+            <a href="auth/user/">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="d-flex flex-nowrap align-items-center justify-content-center">
+                            <i class="fa-solid fa-user-slash mr-2"></i>
+                            <h5 class="card-title">Absent</h5>
+                        </div>
+                        <div>
+                            <p id="absent" class="display-4 font-weight-bold m-0"></p>
+                        </div>  
+                    </div>
+                </div>
+            </a>
+            </div>
+        </div>
+        <div style="width:100%;" class="card" bis_skin_checked="1">
+            <div class="card-body" bis_skin_checked="1">
+                <div id="calendar"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% block extrahead %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>  
+<script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js'></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+{% endblock %}
+<script>
+$(document).ready(function() {
+    $.ajax({
+        url: '/get_dashboard/',
+        type: "GET",
+        data: {csrfmiddlewaretoken: '{{ csrf_token }}'},
+        dataType: 'json',
+        success: function (data) {
+          // console.log(data)
+          $('#total_employee').html(data.total);
+          $('#active').html(data.active);
+          $('#absent').html(data.absent);
+        }
+    });
+})
+function calculateTimeDifference(startDate, endDate) {
+  const timeDiff = endDate - startDate;
+
+  const hours = Math.floor(timeDiff / 3600000);
+  const minutes = Math.floor((timeDiff % 3600000) / 60000); 
+  const seconds = Math.floor((timeDiff % 60000) / 1000); 
+
+  return { hours, minutes, seconds };
+}
+document.addEventListener('DOMContentLoaded', function() {
+    var calendarEl = document.getElementById('calendar');
+    var calendar = new FullCalendar.Calendar(calendarEl, {
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        events: '/all_users_attendance',
+        eventClick: function(info) {
+            // console.log(info)
+            if(info.event.id){
+                $.ajax({
+                    url: '/get_tasks/',
+                    type: "POST",
+                    data: {csrfmiddlewaretoken: '{{ csrf_token }}', atten_id:info.event.id},
+                    dataType: 'json',
+                    success: function (data) {
+
+                        const table = document.createElement("table");
+                        table.classList.add("table");
+
+                        // Create the table header row
+                        const headerRow = table.insertRow(0);
+                        headerRow.innerHTML = "<th>Task</th><th>Start Time</th><th>End Time</th><th>Task Type</th><th>Total Time</th>";
+
+                        // Add table rows with data
+                        var break_total  = 0
+                        data.forEach((item, index) => {
+                            const row = table.insertRow(index + 1);
+                            const tot = item.total
+                            const total = secondsToHMS(tot);
+                            console.log(item.type)
+                            if(item.type == 'BREAK'){
+                                break_total += tot
+                            }
+                            row.innerHTML = `<td>${item.title}</td><td>${item.start}</td><td>${item.end}</td><td>${item.type}</td><td>${total}</td>`;
+                        });
+                        
+                        // break_time = new Date(break_total);
+                        // var hours = break_time.getHours();
+                        // var AmOrPm = hours >= 12 ? 'pm' : 'am';
+                        // hours = (hours % 12) || 12;
+                        // var minutes = break_time.getMinutes() ;
+                        // var finalbreak = hours + ":" + minutes + " " + AmOrPm;
+                        // console.log(break_total)
+                        // Convert the table to an HTML string
+                        const tableHTML = table.outerHTML;
+                        
+                        // console.log(tableHTML)
+                        start_time = info.event.start
+                        var task_st = new Date(start_time);
+                        task_st.setHours(task_st.getHours() + 5);   
+                        var finalstart = task_st.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' });
+                        // console.log(finalstart)
+
+                        end_time = info.event.end
+                        var task_en = new Date(end_time);
+                        task_en.setHours(task_en.getHours() + 5); 
+                        var finalend = task_en.toLocaleTimeString("en-US", { hour: '2-digit', minute: '2-digit' });
+                        
+                        var total_time = calculateTimeDifference(finalstart, finalend);
+                        Swal.fire({
+                            // title: "Task: "+info.event.title,
+                            title: "Employee: "+info.event.title+"\n Start time: "+finalstart+"\n End time: "+finalend+ "\n Total time: "+total_time.hours+":"+total_time.minutes,
+                            html:tableHTML
+                        })
+                    }
+                });
+                
+            }
+        }
+    });
+    calendar.render();
+});
+function secondsToHMS(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const formattedHours = String(hours).padStart(2, '0');
+  const formattedMinutes = String(minutes).padStart(2, '0');
+  return `${formattedHours}:${formattedMinutes}:00`;
+}
+</script>
+{% endblock %}
